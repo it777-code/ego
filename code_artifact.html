@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>กระดานแผนการเล่นฟุตบอล (Tactics Board)</title>
+    
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Load Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&family=Teko:wght@500;600&display=swap" rel="stylesheet">
+    
+    <!-- Load FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Prompt', sans-serif;
+            background-color: #0f172a; /* Slate 900 */
+            color: #f8fafc;
+            overflow: hidden; /* Prevent body scrolling when dragging */
+            touch-action: none; /* Better touch handling */
+        }
+
+        /* Custom Scrollbar for Sidebar */
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05); 
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2); 
+            border-radius: 10px;
+        }
+
+        /* --- Pitch CSS --- */
+        .pitch-container {
+            /* Vertical aspect ratio for standard tactical boards */
+            aspect-ratio: 2 / 3;
+            max-height: 85vh;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            position: relative;
+            background: repeating-linear-gradient(
+                0deg,
+                #2e7d32, /* Green 800 */
+                #2e7d32 10%,
+                #276b2a 10%,
+                #276b2a 20%
+            );
+            border: 4px solid #ffffff;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        /* Pitch Lines */
+        .line {
+            position: absolute;
+            border: 2px solid rgba(255, 255, 255, 0.7);
+        }
+        
+        /* Halfway Line */
+        .halfway-line {
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 0;
+            transform: translateY(-50%);
+        }
+
+        /* Center Circle */
+        .center-circle {
+            top: 50%;
+            left: 50%;
+            width: 25%;
+            aspect-ratio: 1 / 1;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Center Dot */
+        .center-dot {
+            top: 50%;
+            left: 50%;
+            width: 6px;
+            height: 6px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            position: absolute;
+        }
+
+        /* Penalty Areas */
+        .penalty-area {
+            width: 55%;
+            height: 16%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.7);
+            border-left: 2px solid rgba(255, 255, 255, 0.7);
+            border-right: 2px solid rgba(255, 255, 255, 0.7);
+        }
+        .penalty-area.top {
+            top: 0;
+            border-top: none;
+        }
+        .penalty-area.bottom {
+            bottom: 0;
+            border-bottom: none;
+            border-top: 2px solid rgba(255, 255, 255, 0.7);
+        }
+
+        /* Goal Areas */
+        .goal-area {
+            width: 25%;
+            height: 6%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.7);
+            border-left: 2px solid rgba(255, 255, 255, 0.7);
+            border-right: 2px solid rgba(255, 255, 255, 0.7);
+        }
+        .goal-area.top {
+            top: 0;
+            border-top: none;
+        }
+        .goal-area.bottom {
+            bottom: 0;
+            border-bottom: none;
+            border-top: 2px solid rgba(255, 255, 255, 0.7);
+        }
+        
+        /* Penalty Arcs (D-Box) */
+        .penalty-arc {
+            width: 20%;
+            aspect-ratio: 1 / 1;
+            left: 50%;
+            border-radius: 50%;
+            transform: translateX(-50%);
+        }
+        .penalty-arc.top {
+            top: 16%;
+            transform: translate(-50%, -50%);
+            clip-path: polygon(0 50%, 100% 50%, 100% 100%, 0 100%);
+        }
+        .penalty-arc.bottom {
+            bottom: 16%;
+            transform: translate(-50%, 50%);
+            clip-path: polygon(0 0, 100% 0, 100% 50%, 0 50%);
+        }
+
+        /* Corner Arcs */
+        .corner {
+            width: 4%;
+            aspect-ratio: 1 / 1;
+            border-radius: 50%;
+        }
+        .corner.tl { top: 0; left: 0; transform: translate(-50%, -50%); }
+        .corner.tr { top: 0; right: 0; transform: translate(50%, -50%); }
+        .corner.bl { bottom: 0; left: 0; transform: translate(-50%, 50%); }
+        .corner.br { bottom: 0; right: 0; transform: translate(50%, 50%); }
+
+        /* --- Player Tokens --- */
+        .player {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: grab;
+            z-index: 10;
+            transition: transform 0.1s;
+        }
+        .player:active {
+            cursor: grabbing;
+            transform: translate(-50%, -50%) scale(1.1);
+            z-index: 20;
+        }
+
+        .player-number {
+            width: 32px;
+            height: 32px;
+            background: radial-gradient(circle at 30% 30%, #ef4444, #b91c1c); /* Red Team */
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Teko', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+            pointer-events: none; /* Let drag events pass through to container */
+        }
+
+        @media (min-width: 768px) {
+            .player-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1.5rem;
+            }
+        }
+
+        /* Player Name (Editable) */
+        .player-name {
+            margin-top: 4px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: white;
+            white-space: nowrap;
+            text-align: center;
+            border: 1px solid transparent;
+            backdrop-filter: blur(2px);
+            cursor: text;
+            min-width: 40px;
+        }
+        .player-name:focus {
+            outline: none;
+            background: rgba(0, 0, 0, 0.9);
+            border-color: #3b82f6;
+        }
+        
+        @media (min-width: 768px) {
+            .player-name {
+                font-size: 0.8rem;
+            }
+        }
+
+        /* Formation Buttons */
+        .btn-formation {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            transition: all 0.2s ease;
+        }
+        .btn-formation:hover, .btn-formation.active {
+            background: #3b82f6;
+            border-color: #60a5fa;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="flex flex-col md:flex-row h-screen">
+
+    <!-- Sidebar / Controls -->
+    <aside class="w-full md:w-80 bg-slate-800 flex flex-col shadow-2xl z-20 h-auto md:h-full shrink-0 border-b md:border-b-0 md:border-r border-slate-700">
+        
+        <!-- Header -->
+        <div class="p-5 border-b border-slate-700 bg-slate-900/50 flex items-center justify-between">
+            <h1 class="text-xl font-bold flex items-center gap-3">
+                <i class="fas fa-futbol text-green-400"></i>
+                จัดแผนการเล่น
+            </h1>
+        </div>
+
+        <!-- Controls Container -->
+        <div class="p-5 flex-1 overflow-y-auto custom-scroll flex flex-col gap-6">
+            
+            <!-- Instructions -->
+            <div class="bg-slate-700/50 rounded-lg p-4 text-sm text-slate-300 border border-slate-600/50">
+                <ul class="space-y-2">
+                    <li><i class="fas fa-hand-pointer w-5 text-blue-400"></i> <strong>ลาก-วาง</strong> นักเตะเพื่อเปลี่ยนตำแหน่ง</li>
+                    <li><i class="fas fa-edit w-5 text-yellow-400"></i> <strong>คลิกที่ชื่อ</strong> ด้านล่างเบอร์เสื้อเพื่อแก้ไขชื่อนักเตะ</li>
+                </ul>
+            </div>
+
+            <!-- Formations -->
+            <div>
+                <h3 class="text-slate-400 text-sm font-semibold mb-3 uppercase tracking-wider">ระบบการเล่น (Formations)</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="setFormation('4-4-2')" id="btn-4-4-2" class="btn-formation active py-3 rounded-lg font-medium tracking-wide">4-4-2</button>
+                    <button onclick="setFormation('4-3-3')" id="btn-4-3-3" class="btn-formation py-3 rounded-lg font-medium tracking-wide">4-3-3</button>
+                    <button onclick="setFormation('4-2-3-1')" id="btn-4-2-3-1" class="btn-formation py-3 rounded-lg font-medium tracking-wide">4-2-3-1</button>
+                    <button onclick="setFormation('3-5-2')" id="btn-3-5-2" class="btn-formation py-3 rounded-lg font-medium tracking-wide">3-5-2</button>
+                </div>
+            </div>
+            
+            <div class="mt-auto pt-4">
+                <button onclick="resetPitch()" class="w-full py-3 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded-lg transition-colors border border-red-500/30 flex items-center justify-center gap-2">
+                    <i class="fas fa-undo"></i> รีเซ็ตตำแหน่ง
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Pitch Area -->
+    <main class="flex-1 bg-slate-900 p-4 md:p-8 flex items-center justify-center relative touch-none" id="main-area">
+        
+        <div id="pitch" class="pitch-container">
+            <!-- Pitch Markings -->
+            <!-- Halfway -->
+            <div class="line halfway-line"></div>
+            <div class="line center-circle"></div>
+            <div class="center-dot"></div>
+            
+            <!-- Top Half (Opponent) -->
+            <div class="line penalty-area top"></div>
+            <div class="line goal-area top"></div>
+            <div class="line penalty-arc top"></div>
+            
+            <!-- Bottom Half (Our Team) -->
+            <div class="line penalty-area bottom"></div>
+            <div class="line goal-area bottom"></div>
+            <div class="line penalty-arc bottom"></div>
+            
+            <!-- Corners -->
+            <div class="line corner tl"></div>
+            <div class="line corner tr"></div>
+            <div class="line corner bl"></div>
+            <div class="line corner br"></div>
+
+            <!-- Players will be injected here by JS -->
+        </div>
+
+    </main>
+
+    <script>
+        // Data Structure
+        const playersData = [
+            { id: 1, number: 1, name: "GK", role: "gk" },
+            { id: 2, number: 2, name: "RB", role: "def" },
+            { id: 3, number: 4, name: "CB", role: "def" },
+            { id: 4, number: 5, name: "CB", role: "def" },
+            { id: 5, number: 3, name: "LB", role: "def" },
+            { id: 6, number: 6, name: "CDM", role: "mid" },
+            { id: 7, number: 8, name: "CM", role: "mid" },
+            { id: 8, number: 7, name: "RM", role: "mid" },
+            { id: 9, number: 11, name: "LM", role: "mid" },
+            { id: 10, number: 10, name: "CAM", role: "fwd" },
+            { id: 11, number: 9, name: "ST", role: "fwd" }
+        ];
+
+        // Formation Coordinates (X, Y percentages from top-left)
+        // 0% Y is top (Opponent goal), 100% Y is bottom (Our goal)
+        const formations = {
+            '4-4-2': [
+                { x: 50, y: 92 }, // GK
+                { x: 85, y: 75 }, // RB (id: 2)
+                { x: 65, y: 80 }, // CB (id: 3)
+                { x: 35, y: 80 }, // CB (id: 4)
+                { x: 15, y: 75 }, // LB (id: 5)
+                { x: 65, y: 55 }, // CM (id: 6)
+                { x: 35, y: 55 }, // CM (id: 7)
+                { x: 85, y: 50 }, // RM (id: 8)
+                { x: 15, y: 50 }, // LM (id: 9)
+                { x: 60, y: 25 }, // ST (id: 10)
+                { x: 40, y: 25 }  // ST (id: 11)
+            ],
+            '4-3-3': [
+                { x: 50, y: 92 }, // GK
+                { x: 85, y: 75 }, // RB
+                { x: 65, y: 80 }, // CB
+                { x: 35, y: 80 }, // CB
+                { x: 15, y: 75 }, // LB
+                { x: 50, y: 65 }, // CDM
+                { x: 70, y: 50 }, // CM
+                { x: 30, y: 50 }, // CM
+                { x: 85, y: 30 }, // RW
+                { x: 15, y: 30 }, // LW
+                { x: 50, y: 20 }  // ST
+            ],
+            '4-2-3-1': [
+                { x: 50, y: 92 }, // GK
+                { x: 85, y: 75 }, // RB
+                { x: 65, y: 80 }, // CB
+                { x: 35, y: 80 }, // CB
+                { x: 15, y: 75 }, // LB
+                { x: 60, y: 65 }, // CDM
+                { x: 40, y: 65 }, // CDM
+                { x: 85, y: 45 }, // RM
+                { x: 15, y: 45 }, // LM
+                { x: 50, y: 40 }, // CAM
+                { x: 50, y: 20 }  // ST
+            ],
+            '3-5-2': [
+                { x: 50, y: 92 }, // GK
+                { x: 75, y: 80 }, // CB
+                { x: 50, y: 80 }, // CB
+                { x: 25, y: 80 }, // CB
+                { x: 65, y: 60 }, // CM
+                { x: 35, y: 60 }, // CM
+                { x: 90, y: 50 }, // RWB
+                { x: 10, y: 50 }, // LWB
+                { x: 50, y: 45 }, // CAM
+                { x: 60, y: 25 }, // ST
+                { x: 40, y: 25 }  // ST
+            ]
+        };
+
+        let currentFormation = '4-4-2';
+        const pitchEl = document.getElementById('pitch');
+        let activePlayer = null;
+        let isDragging = false;
+        
+        // --- STREAMING_CHUNK:Rendering Players... ---
+        // Initialize Players
+        function initPlayers() {
+            // Remove existing if any
+            document.querySelectorAll('.player').forEach(el => el.remove());
+
+            const positions = formations[currentFormation];
+
+            playersData.forEach((player, index) => {
+                const pos = positions[index];
+                
+                const playerEl = document.createElement('div');
+                playerEl.className = 'player';
+                playerEl.id = `player-${player.id}`;
+                // Set position using percentages for responsiveness
+                playerEl.style.left = `${pos.x}%`;
+                playerEl.style.top = `${pos.y}%`;
+                
+                // Set custom attributes to store current percentage
+                playerEl.dataset.px = pos.x;
+                playerEl.dataset.py = pos.y;
+
+                playerEl.innerHTML = `
+                    <div class="player-number shadow-lg">${player.number}</div>
+                    <div class="player-name shadow-sm" contenteditable="true" spellcheck="false" onfocus="handleNameFocus(event)" onblur="handleNameBlur(event)">${player.name}</div>
+                `;
+
+                // Add Drag Listeners
+                // Mouse
+                playerEl.addEventListener('mousedown', startDrag);
+                // Touch
+                playerEl.addEventListener('touchstart', startDrag, { passive: false });
+
+                pitchEl.appendChild(playerEl);
+            });
+        }
+
+        // --- STREAMING_CHUNK:Drag and Drop Logic... ---
+        // Global Drag Listeners on the document to catch fast movements
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('touchmove', drag, { passive: false });
+        document.addEventListener('mouseup', endDrag);
+        document.addEventListener('touchend', endDrag);
+
+        function startDrag(e) {
+            // Prevent dragging if clicking on the editable name
+            if (e.target.classList.contains('player-name')) return;
+            
+            // Prevent default to avoid scrolling on mobile while dragging
+            if (e.type === 'touchstart') e.preventDefault();
+            
+            isDragging = true;
+            activePlayer = this;
+            
+            // Add slight visual feedback
+            activePlayer.style.zIndex = '30';
+        }
+
+        function drag(e) {
+            if (!isDragging || !activePlayer) return;
+            
+            e.preventDefault(); // Stop scrolling
+
+            // Get mouse/touch position
+            let clientX, clientY;
+            if (e.type === 'touchmove') {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            // Calculate position relative to pitch
+            const pitchRect = pitchEl.getBoundingClientRect();
+            
+            let xPos = clientX - pitchRect.left;
+            let yPos = clientY - pitchRect.top;
+
+            // Constrain to pitch boundaries
+            xPos = Math.max(0, Math.min(xPos, pitchRect.width));
+            yPos = Math.max(0, Math.min(yPos, pitchRect.height));
+
+            // Convert back to percentages so it stays responsive on resize
+            const xPercent = (xPos / pitchRect.width) * 100;
+            const yPercent = (yPos / pitchRect.height) * 100;
+
+            // Update DOM and Data
+            activePlayer.style.left = `${xPercent}%`;
+            activePlayer.style.top = `${yPercent}%`;
+            activePlayer.dataset.px = xPercent;
+            activePlayer.dataset.py = yPercent;
+        }
+
+        function endDrag() {
+            if (!isDragging || !activePlayer) return;
+            isDragging = false;
+            activePlayer.style.zIndex = '10'; // Reset z-index
+            activePlayer = null;
+        }
+
+        // --- STREAMING_CHUNK:Handling UI Events... ---
+        
+        // Editable Name Handlers
+        function handleNameFocus(e) {
+            // Select all text when clicked for quick editing
+            const el = e.target;
+            window.setTimeout(function() {
+                const sel = window.getSelection();
+                const range = document.createRange();
+                range.selectNodeContents(el);
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }, 1);
+        }
+
+        function handleNameBlur(e) {
+            // Ensure it's not empty
+            if(e.target.innerText.trim() === '') {
+                e.target.innerText = 'Player';
+            }
+        }
+
+        // Formation Selection
+        function setFormation(formationName) {
+            currentFormation = formationName;
+            
+            // Update UI Buttons
+            document.querySelectorAll('.btn-formation').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`btn-${formationName}`).classList.add('active');
+
+            // Animate players to new positions
+            const positions = formations[formationName];
+            
+            playersData.forEach((player, index) => {
+                const playerEl = document.getElementById(`player-${player.id}`);
+                const targetPos = positions[index];
+                
+                if (playerEl) {
+                    // Add transition for smooth movement
+                    playerEl.style.transition = 'top 0.5s ease, left 0.5s ease';
+                    
+                    playerEl.style.left = `${targetPos.x}%`;
+                    playerEl.style.top = `${targetPos.y}%`;
+                    playerEl.dataset.px = targetPos.x;
+                    playerEl.dataset.py = targetPos.y;
+
+                    // Remove transition after animation so dragging is instant again
+                    setTimeout(() => {
+                        playerEl.style.transition = 'transform 0.1s';
+                    }, 500);
+                }
+            });
+        }
+
+        function resetPitch() {
+            setFormation(currentFormation);
+        }
+
+        // Initialize App
+        window.onload = () => {
+            initPlayers();
+        };
+
+    </script>
+</body>
+</html>
